@@ -12,7 +12,6 @@
 <meta name="apple-mobile-web-app-title" content="iCenter">
 <link rel="apple-touch-icon" href="icon-180.png">
 <link rel="icon" type="image/png" href="favicon.png">
-<link rel="manifest" href="manifest.json">
 <style>
   html, body { margin: 0; height: 100%; background: #101215; color: #F5F3EE; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, Roboto, sans-serif; }
   iframe { position: fixed; inset: 0; width: 100%; height: 100%; border: 0; background: #101215; }
@@ -20,6 +19,9 @@
   .msg img { width: 72px; height: 72px; border-radius: 18px; }
   .msg b { font-size: 20px; }
   .msg p { margin: 0; max-width: 300px; color: #A8ADB4; font-size: 15px; line-height: 1.45; }
+  .msg input { box-sizing: border-box; width: 100%; max-width: 320px; padding: 13px 14px; border-radius: 12px; border: 1px solid #2A2E35; background: #1A1D22; color: #F5F3EE; font-size: 16px; }
+  .msg button { width: 100%; max-width: 320px; padding: 13px 14px; border: 0; border-radius: 12px; background: #FF6B35; color: #101215; font-size: 16px; font-weight: 600; }
+  .msg .err { color: #FF8A65; font-size: 14px; min-height: 18px; }
   .spin { width: 28px; height: 28px; border: 3px solid rgba(245,243,238,.15); border-top-color: #FF6B35; border-radius: 50%; animation: g .8s linear infinite; }
   @keyframes g { to { transform: rotate(360deg); } }
   .oculto { display: none; }
@@ -27,28 +29,54 @@
 </head>
 <body>
 <div class="msg" id="cargando"><img src="icon-192.png" alt=""><div class="spin"></div></div>
-<div class="msg oculto" id="sinlink"><img src="icon-192.png" alt=""><b>iCenter</b><p>Abrí el link personal que te pasó Fran para entrar a la app.</p></div>
+<div class="msg oculto" id="sinlink">
+  <img src="icon-192.png" alt="">
+  <b>iCenter</b>
+  <p>Pegá acá el link personal que te pasó Fran. Se guarda en este teléfono y no te lo vuelve a pedir.</p>
+  <input id="campo" type="text" placeholder="Pegá tu link" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false">
+  <button id="entrar" type="button">Entrar</button>
+  <div class="err" id="err"></div>
+</div>
 <script>
   // Página de pantalla completa: abre la app de iCenter sin la barra de Google.
   // El link personal llega después del # (ej: .../icenter/#codigo) y nunca viaja al servidor de GitHub.
+  // En el iPhone, el ícono de inicio guarda sus datos aparte de Safari: si no hay código, se pide pegar el link una vez.
   var APP = 'https://script.google.com/macros/s/AKfycbw8BWQJpopQSQd-jwTrs6Ty89QpgMKnw6PlhXgIC9rBW2yVWE7KIgl7CG9fbOP8SVk/exec';
-  window.addEventListener('hashchange', function () { location.reload(); });
-  var tok = decodeURIComponent((location.hash || '').slice(1)).replace(/[^\w-]/g, '');
-  try { if (tok) localStorage.setItem('ic_tok', tok); else tok = localStorage.getItem('ic_tok') || ''; } catch (e) {}
-  if (!tok) {
-    document.getElementById('cargando').classList.add('oculto');
-    document.getElementById('sinlink').classList.remove('oculto');
-  } else {
+  function limpiar(t) { return decodeURIComponent(String(t || '')).replace(/[^\w-]/g, ''); }
+  function sacarCodigo(txt) {
+    txt = String(txt || '').trim();
+    var m = txt.match(/#([\w-]{6,})/) || txt.match(/[?&]v=([\w-]{6,})/) || txt.match(/^([\w-]{6,})$/);
+    return m ? m[1] : '';
+  }
+  function guardar(t) { try { localStorage.setItem('ic_tok', t); } catch (e) {} }
+  function abrir(tok) {
+    document.getElementById('sinlink').classList.add('oculto');
+    document.getElementById('cargando').classList.remove('oculto');
     var f = document.createElement('iframe');
     f.src = APP + '?v=' + encodeURIComponent(tok) + '&w=1';
     f.allow = 'clipboard-read; clipboard-write; camera';
     f.onload = function () { document.getElementById('cargando').classList.add('oculto'); };
     document.body.appendChild(f);
-    // la app pide recargarse cuando hay versión nueva
-    window.addEventListener('message', function (ev) {
-      if (!/\.googleusercontent\.com$|^https:\/\/script\.google\.com$/.test(ev.origin)) return;
-      if (ev.data && ev.data.icenter === 'recargar') location.reload();
-    });
+  }
+  window.addEventListener('hashchange', function () { location.reload(); });
+  // la app pide recargarse cuando hay versión nueva
+  window.addEventListener('message', function (ev) {
+    if (!/\.googleusercontent\.com$|^https:\/\/script\.google\.com$/.test(ev.origin)) return;
+    if (ev.data && ev.data.icenter === 'recargar') location.reload();
+  });
+  var tok = limpiar((location.hash || '').slice(1));
+  if (tok) guardar(tok);
+  else { try { tok = localStorage.getItem('ic_tok') || ''; } catch (e) {} }
+  if (tok) abrir(tok);
+  else {
+    document.getElementById('cargando').classList.add('oculto');
+    document.getElementById('sinlink').classList.remove('oculto');
+    document.getElementById('entrar').onclick = function () {
+      var t = sacarCodigo(document.getElementById('campo').value);
+      if (!t) { document.getElementById('err').textContent = 'Ese no parece tu link. Copialo entero del mensaje de Fran.'; return; }
+      guardar(t);
+      abrir(t);
+    };
   }
 </script>
 </body>
