@@ -72,9 +72,19 @@
   }
   window.addEventListener('hashchange', function () { location.reload(); });
   // la app pide recargarse cuando hay versión nueva
+  // La app guarda cosas (tutorial visto, último stock, caja...). En el ícono del iPhone eso se borra al cerrarla,
+  // así que guardamos una copia acá (m_ + clave) y se la devolvemos al abrir.
   window.addEventListener('message', function (ev) {
     if (!/\.googleusercontent\.com$|^https:\/\/script\.google\.com$/.test(ev.origin)) return;
-    if (ev.data && ev.data.icenter === 'recargar') location.reload();
+    var d = ev.data || {};
+    if (d.icenter === 'recargar') location.reload();
+    else if (d.icenter === 'pedirMemo') {
+      var o = {};
+      try { for (var i = 0; i < localStorage.length; i++) { var k = localStorage.key(i); if (k.indexOf('m_') === 0) o[k.slice(2)] = localStorage.getItem(k); } } catch (e) {}
+      try { ev.source.postMessage({ icenter: 'memo', datos: o }, ev.origin); } catch (e) {}
+    }
+    else if (d.icenter === 'guardar' && typeof d.k === 'string') { try { localStorage.setItem('m_' + d.k, String(d.v)); } catch (e) {} }
+    else if (d.icenter === 'borrar' && typeof d.k === 'string') { try { localStorage.removeItem('m_' + d.k); } catch (e) {} }
   });
   var tok = limpiar((location.hash || '').slice(1));
   if (tok) guardar(tok);
