@@ -49,11 +49,23 @@
     return m ? m[1] : '';
   }
   function guardar(t) { try { localStorage.setItem('ic_tok', t); } catch (e) {} }
+  // Id de este teléfono: se guarda acá (en la página del ícono) porque el iPhone borra lo que guarda la app adentro.
+  function telefono() {
+    var d = '';
+    try { d = localStorage.getItem('ic_dev') || ''; } catch (e) {}
+    if (!/^[0-9a-f]{16}$/.test(d)) {
+      var a = new Uint8Array(8);
+      try { crypto.getRandomValues(a); } catch (e) { for (var i = 0; i < 8; i++) a[i] = Math.floor(Math.random() * 256); }
+      d = Array.prototype.map.call(a, function (x) { return ('0' + x.toString(16)).slice(-2); }).join('');
+      try { localStorage.setItem('ic_dev', d); } catch (e) {}
+    }
+    return d;
+  }
   function abrir(tok) {
     document.getElementById('sinlink').classList.add('oculto');
     document.getElementById('cargando').classList.remove('oculto');
     var f = document.createElement('iframe');
-    f.src = APP + '?v=' + encodeURIComponent(tok) + '&w=1';
+    f.src = APP + '?v=' + encodeURIComponent(tok) + '&w=1&d=' + telefono();
     f.allow = 'clipboard-read; clipboard-write; camera';
     f.onload = function () { document.getElementById('cargando').classList.add('oculto'); };
     document.body.appendChild(f);
